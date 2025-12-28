@@ -12,37 +12,55 @@ import org.springframework.web.bind.annotation.ResponseBody;
 
 import java.util.List;
 
+import com.example.ridesharechat.entity.Message;
+import com.example.ridesharechat.service.MessageService;
+import lombok.RequiredArgsConstructor;
+import org.springframework.messaging.handler.annotation.MessageMapping;
+import org.springframework.messaging.simp.SimpMessagingTemplate;
+import org.springframework.stereotype.Controller;
+import org.springframework.web.bind.annotation.*;
+
+import java.util.List;
+
 @Controller
 @RequiredArgsConstructor
 public class ChatController {
 
-    private final MessageService messageService;
-    private final SimpMessagingTemplate messagingTemplate;
+    private final SimpMessagingTemplate template;
+    private final MessageService service;
 
-    // Serve chat page
     @GetMapping("/chat")
     public String chatPage() {
-        return "chat";
+        return "chat"; // thymeleaf template
     }
 
-    // WebSocket send
     @MessageMapping("/send")
-    public void sendMessage(Message message) {
-        Message saved = messageService.saveMessage(message);
+    public void send(Message message) {
+        Message saved = service.save(message);
 
-        // Send to **receiver**
-        messagingTemplate.convertAndSend("/queue/messages/" + message.getReceiverId(), saved);
+        System.out.println("Backend received: " + message);
 
-        // Send to **sender** so it appears instantly in their chat
-        messagingTemplate.convertAndSend("/queue/messages/" + message.getSenderId(), saved);
+        // Send to receiver
+        template.convertAndSendToUser(
+                message.getReceiverId().toString(),
+                "/queue/messages",
+                saved
+        );
+
+        // Send to sender
+        template.convertAndSendToUser(
+                message.getSenderId().toString(),
+                "/queue/messages",
+                saved
+        );
     }
 
-
-    // REST API for chat history
     @GetMapping("/api/chat/history")
     @ResponseBody
-    public List<Message> getHistory(@RequestParam Long user1, @RequestParam Long user2) {
-        return messageService.getChatHistory(user1, user2);
+    public List<Message> history(@RequestParam Long user1, @RequestParam Long user2) {
+        return service.history(user1, user2);
     }
 }
+
+
 

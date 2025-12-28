@@ -10,7 +10,16 @@ import lombok.NoArgsConstructor;
 
 import java.time.LocalDateTime;
 
+
+import jakarta.persistence.*;
+import lombok.AllArgsConstructor;
+import lombok.Data;
+import lombok.NoArgsConstructor;
+
+import java.time.LocalDateTime;
+
 @Entity
+@Table(name = "messages")
 @Data
 @NoArgsConstructor
 @AllArgsConstructor
@@ -22,8 +31,11 @@ public class Message {
 
     private Long senderId;
     private Long receiverId;
+
+    @Column(length = 1000)
     private String message;
-    private String messageType = "text";
+
     private LocalDateTime timestamp = LocalDateTime.now();
 }
+
 

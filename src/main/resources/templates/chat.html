@@ -1,66 +1,107 @@
 <!DOCTYPE html>
 <html xmlns:th="http://www.thymeleaf.org">
 <head>
-    <title>RideShare 1-to-1 Chat</title>
-    <script src="https://cdn.jsdelivr.net/npm/sockjs-client@1.6.1/dist/sockjs.min.js"></script>
+    <title>1-to-1 JWT Chat Test</title>
+
+    <!-- Stable SockJS + STOMP versions -->
+    <script src="https://cdn.jsdelivr.net/npm/sockjs-client@1.5.1/dist/sockjs.min.js"></script>
     <script src="https://cdn.jsdelivr.net/npm/stompjs@2.3.3/lib/stomp.min.js"></script>
+
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+        }
+        #chatBox {
+            border: 1px solid #ccc;
+            height: 300px;
+            width: 400px;
+            overflow-y: auto;
+            padding: 10px;
+            margin-bottom: 10px;
+        }
+        li {
+            list-style: none;
+            margin: 5px 0;
+        }
+        #msg {
+            width: 300px;
+        }
+    </style>
 </head>
 <body>
-<h2>1-to-1 Chat</h2>
 
-<label>Sender ID: <input id="senderId" value="1"></label><br>
-<label>Receiver ID: <input id="receiverId" value="2"></label><br>
-<label>Message: <input id="message" value="Hello"></label><br>
+<h2>Driver ↔ Rider Chat (JWT Test)</h2>
+
+<label>Your UserId:</label>
+<input id="userId" value="1"><br><br>
+
+<label>Chat With UserId:</label>
+<input id="receiverId" value="2"><br><br>
+
+<button onclick="connect()">Connect</button><br><br>
+
+
+<div id="chatBox">
+    <ul id="chat"></ul>
+</div>
+
+<input id="msg" placeholder="Type your message">
 <button onclick="sendMessage()">Send</button>
-<button onclick="loadHistory()">Load History</button>
-
-<ul id="chat"></ul>
 
 <script>
     let stompClient = null;
 
     function connect() {
-        const socket = new SockJS('/ws-chat');
+        // 🔥 Dummy JWT for testing
+        const dummyJwt = "dummy-token-user-" + document.getElementById("userId").value;
+
+        // Pass JWT as query param
+        const socket = new SockJS('/ws-chat?token=' + dummyJwt);
         stompClient = Stomp.over(socket);
-        stompClient.connect({}, function(frame) {
-            console.log('Connected: ' + frame);
-            const receiverId = document.getElementById('receiverId').value;
-            stompClient.subscribe('/queue/messages/' + receiverId, function(msg) {
-                const message = JSON.parse(msg.body);
-                const li = document.createElement('li');
-                li.innerText = `From ${message.senderId}: ${message.message}`;
-                document.getElementById('chat').appendChild(li);
+
+        // Enable debug logs
+        stompClient.debug = function (msg) {
+            console.log(msg);
+        };
+
+        stompClient.connect({}, function () {
+            console.log("Connected with dummy JWT");
+
+            stompClient.subscribe('/user/queue/messages', function (response) {
+                const msg = JSON.parse(response.body);
+                renderMessage(msg);
             });
+        }, function (error) {
+            console.error("STOMP connection error:", error);
         });
     }
 
     function sendMessage() {
-        const message = {
-            senderId: parseInt(document.getElementById('senderId').value),
-            receiverId: parseInt(document.getElementById('receiverId').value),
-            message: document.getElementById('message').value
-        };
-        stompClient.send("/app/send", {}, JSON.stringify(message));
+        const senderId = document.getElementById("userId").value;
+        const receiverId = document.getElementById("receiverId").value;
+        const messageText = document.getElementById("msg").value;
+
+        if (!messageText) return;
+
+        stompClient.send("/app/send", {}, JSON.stringify({
+            senderId: senderId,
+            receiverId: receiverId,
+            message: messageText
+        }));
+
+        document.getElementById("msg").value = "";
     }
 
-    function loadHistory() {
-        const user1 = document.getElementById('senderId').value;
-        const user2 = document.getElementById('receiverId').value;
-        fetch(`/api/chat/history?user1=${user1}&user2=${user2}`)
-            .then(res => res.json())
-            .then(messages => {
-                const ul = document.getElementById('chat');
-                ul.innerHTML = '';
-                messages.forEach(msg => {
-                    const li = document.createElement('li');
-                    li.innerText = `From ${msg.senderId}: ${msg.message}`;
-                    ul.appendChild(li);
-                });
-            });
-    }
+    function renderMessage(msg) {
+        const chat = document.getElementById("chat");
+        const userId = document.getElementById("userId").value;
 
-    // Connect on page load
-    connect();
+        const li = document.createElement("li");
+        li.innerText = (msg.senderId == userId ? "You: " : "From " + msg.senderId + ": ") + msg.message;
+
+        chat.appendChild(li);
+        chat.scrollTop = chat.scrollHeight;
+    }
 </script>
 </body>
 </html>
