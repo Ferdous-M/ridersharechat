@@ -24,9 +24,6 @@ public class JwtHandshakeInterceptor implements HandshakeInterceptor {
 
         if (query != null && query.contains("token=")) {
             String token = query.split("token=")[1];
-
-            // 🔥 TEST PARSING LOGIC
-            // token format: dummy-token-user-1
             String userId = token.substring(token.lastIndexOf("-") + 1);
 
             attributes.put("userId", userId);
